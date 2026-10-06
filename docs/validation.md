@@ -17,6 +17,7 @@
 ## 新增主机和维护功能
 
 - 选一个测试主机名，运行 `host`，检查 `hostnamectl --static`、`getent hosts 名称` 和原有 hosts 别名。云镜像有 cloud-init 时重启后名称应保留；留空时不应改原名。默认 LANG 在新会话验证，已有 LC_* 分类保留。
+- 分别验证 Debian 12 的 `/etc/default/locale` 和 Debian 13 的 `/etc/locale.conf`：Debian 13 的兼容链接应保持，备份包含实际配置文件，重复运行 `host`/`init` 后 `check` 通过。异常链接应在 `doctor` 预检时被拒绝。
 - 在没有时间服务的主机上确认 timesyncd 启动并最终同步；另在已有 Chrony 的主机上确认沿用其配置。自定义 `NTP_SERVERS` 的 timesyncd 应使用所选上游，重复运行不重复写入；Chrony 配置自定义上游时预检应提示改原服务配置。
 - 分别检查 Debian 12/13 的 sysstat collect/summary 定时器；Debian 13 的 rotate 存在时应启用。等待采集后用 `sar` 查看记录，确认 `/etc/sysstat/sysstat` 保留原有其他参数，HISTORY 与配置一致。
 - 有 SSD 或 thin provisioning 的测试存储启用 TRIM 后检查发行版定时器和执行结果，确认不支持的设备按发行版处理。家庭主机检查磁盘健康工具适用性，不把 VPS 虚拟盘当作实体 SMART 设备。

@@ -149,6 +149,71 @@ configure_hostname
         self.run_bash('SERVER_HOSTNAME=home01\nhost_preflight\n', ok=False)
         self.assertEqual(target.read_text(), 'original\n')
 
+    def test_locale_debian13_compatibility_links_preserve_link_categories_and_backup(self):
+        for destination in ['../locale.conf', '/etc/locale.conf']:
+            with self.subTest(destination=destination):
+                original = '# policy\nLANG=C\nLC_TIME=C\n'
+                canonical = self.write('etc/locale.conf', original)
+                legacy = self.root / 'etc/default/locale'
+                legacy.parent.mkdir(parents=True, exist_ok=True)
+                if legacy.is_symlink():
+                    legacy.unlink()
+                legacy.symlink_to(destination)
+                self.run_bash('VERSION_ID=13\nSYSTEM_LOCALE=C.UTF-8\nhost_preflight\n'
+                              'configure_host\nconfigure_host\ncheck_host\n')
+                self.assertEqual(os.readlink(legacy), destination)
+                self.assertEqual(canonical.read_text(), '# policy\nLANG="C.UTF-8"\nLC_TIME=C\n')
+                self.assertEqual((self.fixture / 'backups/etc/locale.conf').read_text(), original)
+                self.assertFalse((self.fixture / 'backups/etc/default/locale').exists())
+
+    def test_locale_missing_files_use_distribution_default(self):
+        for version, relative in [('12', 'etc/default/locale'), ('13', 'etc/locale.conf')]:
+            with self.subTest(version=version):
+                self.run_bash(f'VERSION_ID={version}\nSYSTEM_LOCALE=C.UTF-8\nhost_preflight\n'
+                              'configure_host\ncheck_host\n')
+                target = self.root / relative
+                self.assertEqual(target.read_text(), 'LANG="C.UTF-8"\n')
+                target.unlink()
+
+    def test_locale_missing_canonical_file_keeps_standard_compatibility_link(self):
+        legacy = self.root / 'etc/default/locale'
+        legacy.parent.mkdir(parents=True)
+        legacy.symlink_to('../locale.conf')
+        self.run_bash('SYSTEM_LOCALE=C.UTF-8\nhost_preflight\nconfigure_host\ncheck_host\n')
+        self.assertEqual(os.readlink(legacy), '../locale.conf')
+        self.assertEqual((self.root / 'etc/locale.conf').read_text(), 'LANG="C.UTF-8"\n')
+
+    def test_locale_preflight_rejects_unknown_link_without_writes(self):
+        target = self.write('etc/other-config', 'original\n')
+        legacy = self.root / 'etc/default/locale'
+        legacy.parent.mkdir(parents=True)
+        legacy.symlink_to('../other-config')
+        self.run_bash('SYSTEM_LOCALE=C.UTF-8\nhost_preflight\n', ok=False)
+        self.assertEqual(target.read_text(), 'original\n')
+        self.assertFalse((self.root / 'etc/locale.conf').exists())
+
+    def test_locale_preflight_rejects_chained_symlink_and_directory(self):
+        target = self.write('etc/other-config', 'original\n')
+        legacy = self.root / 'etc/default/locale'
+        legacy.parent.mkdir(parents=True)
+        legacy.symlink_to('../locale.conf')
+        canonical = self.root / 'etc/locale.conf'
+        canonical.symlink_to(target)
+        self.run_bash('SYSTEM_LOCALE=C.UTF-8\nhost_preflight\n', ok=False)
+        canonical.unlink()
+        canonical.mkdir()
+        self.run_bash('SYSTEM_LOCALE=C.UTF-8\nhost_preflight\n', ok=False)
+        self.assertEqual(target.read_text(), 'original\n')
+
+    def test_locale_empty_setting_leaves_unknown_link_untouched(self):
+        target = self.write('etc/other-config', 'original\n')
+        legacy = self.root / 'etc/default/locale'
+        legacy.parent.mkdir(parents=True)
+        legacy.symlink_to('../other-config')
+        self.run_bash('host_preflight\nconfigure_host\ncheck_host\n')
+        self.assertEqual(os.readlink(legacy), '../other-config')
+        self.assertEqual(target.read_text(), 'original\n')
+
     def test_existing_chrony_is_enabled_without_replacement_or_config_changes(self):
         target = self.write('etc/chrony/chrony.conf', 'server existing.example iburst\n')
         self.run_bash(TIME_MOCKS + 'PROVIDERS=chrony\nconfigure_time_sync\n')

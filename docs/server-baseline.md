@@ -27,6 +27,8 @@
 
 `SYSTEM_LOCALE=C.UTF-8` 设置新会话默认 LANG，使用英文消息并支持 UTF-8 文件名；保留原来的 LC_TIME 等分类设置，已有 LC_ALL 仍可能覆盖 LANG。留空保持原值，中文消息等其他 locale 需要另行生成并配置。[Debian locale 说明](https://www.debian.org/doc/manuals/debian-reference/ch08.en.html)。
 
+兼容 Debian 12 的 `/etc/default/locale` 和 Debian 13 的 `/etc/locale.conf`。遇到系统标准的 `/etc/default/locale → /etc/locale.conf` 兼容链接时，保留链接，修改并备份实际配置文件；异常链接或非普通文件在预检阶段拒绝。[Debian 13 update-locale 手册](https://manpages.debian.org/trixie/locales/update-locale.8.en.html)。
+
 时间同步关系到日志时间与跨机器排障。脚本优先沿用已安装的 Chrony、ntpsec、OpenNTPD 或 timesyncd，不卸载它们；没有服务时安装 timesyncd。如果发现多套或未识别的时间服务，预检停止，整合原配置或设 `ENABLE_TIME_SYNC=no`。[Debian 时间配置](https://wiki.debian.org/DateTime)。
 
 `NTP_SERVERS=` 留空保持已有配置和发行版/DHCP 上游；非空仅用于 timesyncd，接受空格分隔的 DNS 名、IPv4 或纯 IPv6，不附端口、URL、作用域或 IPv4 嵌入形式。现有 Chrony 等请在它们原来的配置中修改上游。默认出站规则允许 NTP；客户端同步不需要开放 UDP 123 入站。首次启动可能尚未完成同步，脚本显示这一状态，稍后运行 `health` 查看。配置项和上游合并规则见 [timesyncd.conf](https://manpages.debian.org/bookworm/systemd-timesyncd/timesyncd.conf.5.en.html)。

@@ -1,5 +1,26 @@
 #!/usr/bin/env bash
 
+locale_config_file() {
+  local legacy canonical target
+  legacy=$(root_path /etc/default/locale)
+  canonical=$(root_path /etc/locale.conf)
+  if [[ -L "$legacy" ]]; then
+    # Debian 13 keeps this compatibility link; never follow arbitrary links.
+    case "$(readlink "$legacy")" in
+      ../locale.conf|/etc/locale.conf) target=$canonical ;;
+      *) die "字符集配置链接目标异常：$legacy" ;;
+    esac
+  elif [[ -e "$legacy" ]]; then
+    target=$legacy
+  elif [[ -e "$canonical" || -L "$canonical" || "${VERSION_ID:-}" == 13 ]]; then
+    target=$canonical
+  else
+    target=$legacy
+  fi
+  [[ ! -L "$target" && ( ! -e "$target" || -f "$target" ) ]] || die "字符集配置不是普通文件：$target"
+  printf '%s\n' "$target"
+}
+
 host_preflight() {
   if [[ -n "$SERVER_HOSTNAME" ]]; then
     local target
@@ -9,6 +30,8 @@ host_preflight() {
     done
   fi
   if [[ -n "$SYSTEM_LOCALE" ]]; then
+    local locale_file
+    locale_file=$(locale_config_file)
     [[ "$(LC_ALL=C.UTF-8 locale charmap)" == UTF-8 ]] || die '系统缺少 C.UTF-8 locale。'
   fi
 }
@@ -62,10 +85,14 @@ configure_hostname() {
 }
 
 configure_host() {
+  local locale_file=''
+  if [[ -n "$SYSTEM_LOCALE" ]]; then
+    locale_file=$(locale_config_file)
+  fi
   configure_hostname
   if [[ -n "$SYSTEM_LOCALE" ]]; then
     step '设置默认 LANG 为 C.UTF-8，保留其他 locale 分类'
-    update_config_assignment "$(root_path /etc/default/locale)" LANG '"C.UTF-8"'
+    update_config_assignment "$locale_file" LANG '"C.UTF-8"'
     log '字符集配置在新的登录会话中生效。'
   fi
 }
@@ -73,6 +100,8 @@ configure_host() {
 check_host() {
   [[ -z "$SERVER_HOSTNAME" || "$(hostnamectl --static)" == "$SERVER_HOSTNAME" ]] || die '静态主机名与配置不一致。'
   if [[ -n "$SYSTEM_LOCALE" ]]; then
-    grep -Fxq 'LANG="C.UTF-8"' "$(root_path /etc/default/locale)" || die '默认 LANG 尚未配置。'
+    local locale_file
+    locale_file=$(locale_config_file)
+    grep -Fxq 'LANG="C.UTF-8"' "$locale_file" || die '默认 LANG 尚未配置。'
   fi
 }
