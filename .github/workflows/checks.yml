@@ -1,0 +1,45 @@
+name: Checks
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  regression:
+    name: Debian ${{ matrix.debian }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        debian: [bookworm-slim, trixie-slim]
+    container:
+      image: debian:${{ matrix.debian }}
+    steps:
+      - name: Install test dependencies in the CI container
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          apt-get -o Acquire::Retries=3 --error-on=any update
+          apt-get install -y --no-install-recommends \
+            bash ca-certificates git python3 openssh-client \
+            systemd util-linux procps iproute2 tzdata
+
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Check Bash syntax
+        shell: bash
+        run: |
+          for script in setup.sh lib/*.sh modules/*.sh; do
+            bash -n "$script"
+          done
+
+      - name: Run offline regression tests
+        shell: bash
+        run: python3 -m unittest discover -s tests -v

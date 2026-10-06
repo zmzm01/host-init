@@ -1,0 +1,19 @@
+/config.conf
+/configs/*.conf
+!/configs/*.example.conf
+id_*
+*.pub
+__pycache__/
+*.pyc
+
+# Keep local credentials, agent state and runtime logs out of the repository.
+/.aws/
+/.codex/
+/.agents/
+.env
+.env.*
+*.key
+*.pem
+*.p12
+*.pfx
+*.log
