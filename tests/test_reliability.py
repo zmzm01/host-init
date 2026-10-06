@@ -41,6 +41,33 @@ class ReliabilityTests(WorkflowFixture):
         self.assertEqual((directory / "existing").read_text(), "unrelated")
         self.assertEqual((directory / "vps-init.lock").stat().st_mode & 0o777, 0o600)
 
+    def test_explicit_failure_records_step_and_log_location(self):
+        self.run_bash('RUN_COMMAND=tools\nID=debian\nVERSION_ID=13\nbegin_run\n'
+                      "step '检查常用工具安装状态'\ndie 'package missing'\n", ok=False)
+        logs = list((self.root / 'var/log/vps-init').glob('*.log'))
+        self.assertEqual(len(logs), 1)
+        data = logs[0].read_text()
+        self.assertIn('操作：tools；系统：debian 13', data)
+        self.assertIn('错误：package missing', data)
+        self.assertIn('失败步骤：检查常用工具安装状态', data)
+        self.assertIn(f'日志：{logs[0]}', data)
+        self.assertEqual(logs[0].stat().st_mode & 0o777, 0o600)
+
+    def test_apt_output_and_unexpected_failure_are_logged_without_running_real_apt(self):
+        self.run_bash(r'''
+begin_run
+step '安装测试软件包'
+apt-get() { printf 'simulated apt error\n' >&2; return 100; }
+apt_install bind9-dnsutils
+''', ok=False)
+        logs = list((self.root / 'var/log/vps-init').glob('*.log'))
+        self.assertEqual(len(logs), 1)
+        data = logs[0].read_text()
+        self.assertIn('APT 安装请求：bind9-dnsutils', data)
+        self.assertIn('simulated apt error', data)
+        self.assertIn('步骤「安装测试软件包」', data)
+        self.assertIn('退出码 100', data)
+
     def test_begin_run_rejects_symlink_lock_without_truncating_target(self):
         target = self.write("etc/example.conf", "keep original\n")
         directory = self.root / "run/lock"

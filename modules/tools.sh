@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 COMMON_PACKAGES=(vim-tiny nano htop git wget rsync jq unzip zip zstd tree
-  lsof dnsutils iputils-ping mtr-tiny netcat-openbsd ncdu ripgrep fd-find bash-completion)
+  lsof bind9-dnsutils iputils-ping mtr-tiny netcat-openbsd ncdu ripgrep fd-find bash-completion)
 
 # Pin both the release and official GitHub archive digests; never execute latest blindly.
 ZELLIJ_VERSION=0.45.1
@@ -72,13 +72,16 @@ install_common_tools() {
 }
 
 check_common_tools() {
-  local packages=() package status
+  step '检查常用工具安装状态'
+  local packages=() package status query_status
   [[ "$INSTALL_COMMON_TOOLS" == no ]] || packages+=("${COMMON_PACKAGES[@]}")
   [[ "$INSTALL_COMMON_TOOLS" == no || "$TERMINAL_MULTIPLEXER" != tmux ]] || packages+=(tmux)
   packages+=("${EXTRA_PACKAGE_LIST[@]}")
   for package in "${packages[@]}"; do
-    status=$(dpkg-query -W -f='${Status}' "$package" 2>/dev/null || true)
-    [[ "$status" == 'install ok installed' ]] || die "常用工具尚未安装：$package"
+    query_status=0
+    status=$(dpkg-query -W -f='${Status}' "$package" 2>&1) || query_status=$?
+    log "软件包 $package：${status:-无状态输出}（查询退出码 $query_status）"
+    [[ "$query_status" == 0 && "$status" == 'install ok installed' ]] || die "常用工具尚未安装或状态异常：$package；请查看日志中的软件包状态和 APT 输出。"
   done
   if [[ "$INSTALL_COMMON_TOOLS" == yes && "$TERMINAL_MULTIPLEXER" == zellij ]]; then
     tools_preflight

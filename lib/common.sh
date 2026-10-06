@@ -11,7 +11,13 @@ SWAP_CANDIDATE=''
 
 root_path() { printf '%s%s' "$ROOT_PREFIX" "$1"; }
 log() { printf '[%s] %s\n' "$(date '+%H:%M:%S')" "$*"; }
-die() { printf '错误：%s\n' "$*" >&2; exit 1; }
+die() {
+  printf '错误：%s\n' "$*" >&2
+  if [[ -n "${LOG_FILE:-}" ]]; then
+    printf '失败步骤：%s\n日志：%s\n' "$CURRENT_STEP" "$LOG_FILE" >&2
+  fi
+  exit 1
+}
 step() { CURRENT_STEP=$1; log "$1"; }
 sshd() { /usr/sbin/sshd "$@"; }
 
@@ -272,6 +278,7 @@ begin_run() {
   trap 'on_error "$?" "$LINENO"' ERR
   trap cleanup EXIT
   log "日志：$LOG_FILE"
+  log "操作：${RUN_COMMAND:-未指定}；系统：${ID:-未知} ${VERSION_ID:-未知}；配置：${CONFIG_FILE:-未指定}"
 }
 
 on_error() {
@@ -334,6 +341,7 @@ apt_update() {
 }
 
 apt_install() {
+  log "APT 安装请求：$*"
   DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=l apt-get -o DPkg::Lock::Timeout=120 -o Acquire::Retries=3 \
     -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold \
     --no-remove install -y "$@"

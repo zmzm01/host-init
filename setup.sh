@@ -123,6 +123,7 @@ main() {
     host) host_preflight; time_preflight ;;
     maintenance) swap_preflight ;;
   esac
+  RUN_COMMAND=$command
   begin_run
   case "$command" in
     init)

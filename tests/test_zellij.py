@@ -68,6 +68,39 @@ class ZellijTests(WorkflowFixture):
         self.assertIn('download ', self.trace())
         self.assertIn('--proto =https --proto-redir =https', self.trace())
 
+    def test_dns_tools_use_real_package_when_virtual_dnsutils_is_not_installed(self):
+        self.run_bash(r'''
+TERMINAL_MULTIPLEXER=none
+dpkg-query() {
+  if [[ "${@: -1}" == dnsutils ]]; then printf 'unknown ok not-installed';
+  else printf 'install ok installed'; fi
+}
+install_common_tools
+check_common_tools
+''')
+        self.assertIn(' bind9-dnsutils ', self.trace())
+        self.assertNotIn(' dnsutils ', self.trace())
+
+    def test_missing_package_reports_observed_status(self):
+        result = self.run_bash(r'''
+TERMINAL_MULTIPLEXER=none
+dpkg-query() {
+  if [[ "${@: -1}" == bind9-dnsutils ]]; then printf 'deinstall ok config-files';
+  else printf 'install ok installed'; fi
+}
+check_common_tools
+''', ok=False)
+        self.assertIn('bind9-dnsutils：deinstall ok config-files', result.stdout)
+        self.assertIn('bind9-dnsutils', result.stderr)
+
+    def test_package_query_failure_is_logged_and_not_mistaken_for_installed(self):
+        result = self.run_bash(r'''
+dpkg-query() { printf 'package database unavailable\n' >&2; return 2; }
+check_common_tools
+''', ok=False)
+        self.assertIn('package database unavailable', result.stdout)
+        self.assertIn('查询退出码 2', result.stdout)
+
     def test_repeated_install_keeps_binary_and_user_config_without_second_download(self):
         config = self.write('home/ops/.config/zellij/config.kdl', 'theme "custom"\n')
         self.run_bash(self.archive() + 'install_common_tools\ninstall_common_tools\n')
