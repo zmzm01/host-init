@@ -8,6 +8,7 @@ BACKUP_DIR=''
 FILE_CHANGED=no
 FILE_PREVIOUS=''
 SWAP_CANDIDATE=''
+RUN_WARNINGS=()
 
 root_path() { printf '%s%s' "$ROOT_PREFIX" "$1"; }
 log() { printf '[%s] %s\n' "$(date '+%H:%M:%S')" "$*"; }
@@ -19,6 +20,14 @@ die() {
   exit 1
 }
 step() { CURRENT_STEP=$1; log "$1"; }
+warn() { RUN_WARNINGS+=("$*"); log "警告：$*"; }
+report_warnings() {
+  ((${#RUN_WARNINGS[@]} > 0)) || return 0
+  log '本次流程已结束，但以下项目未完成：'
+  local warning
+  for warning in "${RUN_WARNINGS[@]}"; do log "  - $warning"; done
+  log "修复后可重跑 tools；详细日志：${LOG_FILE:-未创建}"
+}
 sshd() { /usr/sbin/sshd "$@"; }
 
 trim() {

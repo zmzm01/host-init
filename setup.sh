@@ -150,7 +150,7 @@ main() {
       check_host
       check_maintenance
       check_swap
-      log '基础初始化完成。请用新管理员公钥登录并验证 sudo，然后执行 harden。' ;;
+      log '基础初始化流程执行完毕。请用新管理员公钥登录并验证 sudo，然后执行 harden。' ;;
     docker) assert_no_pending_ssh; install_docker ;;
     tools) assert_no_pending_ssh; apt_update; install_common_tools; check_common_tools ;;
     security)
@@ -193,8 +193,9 @@ main() {
       check_swap
       [[ "$INSTALL_TAILSCALE" == no ]] || check_tailscale
       if services_selected; then check_services; fi
-      log '检查通过。' ;;
+      log '检查完成。' ;;
   esac
+  report_warnings
   log "本次备份目录：$BACKUP_DIR"
 }
 

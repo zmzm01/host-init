@@ -13,6 +13,7 @@ INSTALL_COMMON_TOOLS=yes
 TERMINAL_MULTIPLEXER=zellij
 EXTRA_PACKAGE_LIST=()
 apt_install() { printf 'packages %s\n' "$*" >> "$TRACE"; }
+apt-get() { :; }
 dpkg() { printf '%s\n' "${ARCHITECTURE:-amd64}"; }
 dpkg-query() { printf 'install ok installed'; }
 curl() {
@@ -89,9 +90,9 @@ dpkg-query() {
   else printf 'install ok installed'; fi
 }
 check_common_tools
-''', ok=False)
+''')
         self.assertIn('bind9-dnsutils：deinstall ok config-files', result.stdout)
-        self.assertIn('bind9-dnsutils', result.stderr)
+        self.assertIn('警告：常用工具尚未安装：bind9-dnsutils', result.stdout)
 
     def test_package_query_failure_is_logged_and_not_mistaken_for_installed(self):
         result = self.run_bash(r'''
@@ -100,6 +101,83 @@ check_common_tools
 ''', ok=False)
         self.assertIn('package database unavailable', result.stdout)
         self.assertIn('查询退出码 2', result.stdout)
+
+    def test_bad_optional_package_is_skipped_while_other_tools_and_later_steps_run(self):
+        result = self.run_bash(r'''
+TERMINAL_MULTIPLEXER=none
+COMMON_PACKAGES=(git typo-package jq)
+apt-get() {
+  [[ "${@: -1}" != typo-package ]] || { printf 'E: Unable to locate package typo-package\n' >&2; return 100; }
+}
+dpkg-query() {
+  [[ "${@: -1}" != typo-package ]] || { printf 'no packages found\n' >&2; return 1; }
+  printf 'install ok installed'
+}
+install_common_tools
+printf 'LATER_MODULE_RAN\n'
+check_common_tools
+printf 'LATER_CHECK_RAN\n'
+report_warnings
+''')
+        self.assertIn('packages git jq', self.trace())
+        self.assertNotIn('packages git typo-package', self.trace())
+        self.assertIn('LATER_MODULE_RAN', result.stdout)
+        self.assertIn('LATER_CHECK_RAN', result.stdout)
+        self.assertIn('以下项目未完成', result.stdout)
+        self.assertIn('typo-package', result.stdout)
+
+    def test_extra_package_without_candidate_is_skipped_even_when_defaults_disabled(self):
+        result = self.run_bash(r'''
+INSTALL_COMMON_TOOLS=no
+EXTRA_PACKAGE_LIST=(missing-extra sqlite3)
+apt-get() {
+  [[ "${@: -1}" != missing-extra ]] || { printf "E: Package 'missing-extra' has no installation candidate\n"; return 100; }
+}
+install_common_tools
+report_warnings
+''')
+        self.assertEqual(self.trace(), 'packages sqlite3\n')
+        self.assertIn('跳过常用工具 missing-extra', result.stdout)
+
+    def test_all_missing_optional_packages_do_not_call_real_installer(self):
+        result = self.run_bash(r'''
+TERMINAL_MULTIPLEXER=none
+COMMON_PACKAGES=(missing-package)
+apt-get() { printf 'E: Unable to locate package missing-package\n'; return 100; }
+install_common_tools
+printf 'CONTINUED\n'
+''')
+        self.assertFalse((self.fixture / 'trace').exists())
+        self.assertIn('CONTINUED', result.stdout)
+
+    def test_dependency_failure_is_not_silently_treated_as_bad_package_name(self):
+        result = self.run_bash(r'''
+TERMINAL_MULTIPLEXER=none
+COMMON_PACKAGES=(git)
+apt-get() { printf 'E: Unmet dependencies. Try apt --fix-broken install.\n'; return 100; }
+install_common_tools
+printf 'UNEXPECTED_CONTINUE\n'
+''', ok=False)
+        self.assertNotIn('UNEXPECTED_CONTINUE', result.stdout)
+        self.assertIn('APT 预检查失败', result.stderr)
+
+    def test_actual_package_install_failure_still_stops_with_original_exit_code(self):
+        result = self.run_bash(r'''
+TERMINAL_MULTIPLEXER=none
+COMMON_PACKAGES=(git)
+apt_install() { return 100; }
+install_common_tools
+printf 'UNEXPECTED_CONTINUE\n'
+''', ok=False)
+        self.assertEqual(result.returncode, 100)
+        self.assertNotIn('UNEXPECTED_CONTINUE', result.stdout)
+
+    def test_partially_configured_tool_is_fatal_instead_of_missing_warning(self):
+        result = self.run_bash(r'''
+dpkg-query() { printf 'install ok half-configured'; }
+check_common_tools
+''', ok=False)
+        self.assertIn('软件包状态异常', result.stderr)
 
     def test_repeated_install_keeps_binary_and_user_config_without_second_download(self):
         config = self.write('home/ops/.config/zellij/config.kdl', 'theme "custom"\n')

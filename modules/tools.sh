@@ -60,6 +60,27 @@ install_zellij() {
   log 'Zellij 已安装到 /usr/local/bin/zellij；以管理员账户运行 zellij，不自动修改 Shell 启动文件。'
 }
 
+install_optional_tool_packages() {
+  local package output status
+  local available=()
+  output="$WORK_DIR/tool-package-plan.log"
+  for package in "$@"; do
+    status=0
+    LC_ALL=C apt-get -o DPkg::Lock::Timeout=120 --no-remove --simulate install "$package" > "$output" 2>&1 || status=$?
+    if ((status == 0)); then
+      available+=("$package")
+    else
+      cat "$output"
+      if ((status == 100)) && grep -Eq '^E: (Unable to locate package |Package .* has no installation candidate)' "$output"; then
+        warn "跳过常用工具 $package：当前软件源中找不到可安装的软件包。"
+      else
+        die "常用工具 $package 的 APT 预检查失败（退出码 $status）；请查看上方错误。"
+      fi
+    fi
+  done
+  if ((${#available[@]} > 0)); then apt_install "${available[@]}"; fi
+}
+
 install_common_tools() {
   step '安装常用编辑、诊断和文件管理工具'
   tools_preflight
@@ -67,7 +88,7 @@ install_common_tools() {
   [[ "$INSTALL_COMMON_TOOLS" == no ]] || packages+=("${COMMON_PACKAGES[@]}")
   [[ "$INSTALL_COMMON_TOOLS" == no || "$TERMINAL_MULTIPLEXER" != tmux ]] || packages+=(tmux)
   packages+=("${EXTRA_PACKAGE_LIST[@]}")
-  if ((${#packages[@]} > 0)); then apt_install "${packages[@]}"; fi
+  if ((${#packages[@]} > 0)); then install_optional_tool_packages "${packages[@]}"; fi
   if [[ "$INSTALL_COMMON_TOOLS" == yes && "$TERMINAL_MULTIPLEXER" == zellij ]]; then install_zellij; fi
 }
 
@@ -81,7 +102,13 @@ check_common_tools() {
     query_status=0
     status=$(dpkg-query -W -f='${Status}' "$package" 2>&1) || query_status=$?
     log "软件包 $package：${status:-无状态输出}（查询退出码 $query_status）"
-    [[ "$query_status" == 0 && "$status" == 'install ok installed' ]] || die "常用工具尚未安装或状态异常：$package；请查看日志中的软件包状态和 APT 输出。"
+    if [[ "$query_status" == 0 && "$status" == 'install ok installed' ]]; then
+      continue
+    elif [[ "$query_status" == 1 || ( "$query_status" == 0 && ( "$status" == 'unknown ok not-installed' || "$status" == 'deinstall ok config-files' || "$status" == 'deinstall ok not-installed' || "$status" == 'purge ok not-installed' ) ) ]]; then
+      warn "常用工具尚未安装：$package；保留后续安装步骤，修复包名或软件源后重跑 tools。"
+    else
+      die "常用工具软件包状态异常：$package；请查看日志中的软件包状态和 APT 输出。"
+    fi
   done
   if [[ "$INSTALL_COMMON_TOOLS" == yes && "$TERMINAL_MULTIPLEXER" == zellij ]]; then
     tools_preflight
