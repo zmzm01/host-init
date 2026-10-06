@@ -52,6 +52,7 @@ show_plan() {
   printf '额外 TCP 端口：%s\n额外 UDP 端口：%s\n' "${ALLOW_TCP_PORTS:-无}" "${ALLOW_UDP_PORTS:-无}"
   printf '系统加固：%s\n自动安全更新：%s\n常用工具：%s\n额外软件包：%s\nTailscale：%s\n' \
     "$INSTALL_SECURITY_HARDENING" "$ENABLE_UNATTENDED_UPGRADES" "$INSTALL_COMMON_TOOLS" "${EXTRA_PACKAGES:-无}" "$INSTALL_TAILSCALE"
+  printf '终端复用工具：%s（随常用工具安装；Zellij 固定版本 %s）\n' "$TERMINAL_MULTIPLEXER" "$ZELLIJ_VERSION"
   printf 'Syncthing：%s；Nginx：%s；Mihomo：%s；服务局域网：%s\n' \
     "$INSTALL_SYNCTHING" "$INSTALL_NGINX" "$INSTALL_MIHOMO" "${SERVICE_LAN_CIDR:-未放行}"
   printf '主机名：%s；默认 LANG：%s；时间同步：%s；NTP 上游：%s；Swap：%s MiB\n' \
@@ -75,6 +76,7 @@ preflight_init() {
   host_preflight
   time_preflight
   swap_preflight
+  tools_preflight
   [[ "$INSTALL_DOCKER" == no ]] || docker_preflight
   [[ "$INSTALL_TAILSCALE" == no ]] || tailscale_preflight
   if services_selected; then services_preflight "$mode"; fi
@@ -116,6 +118,7 @@ main() {
         getent passwd "$ADMIN_USER" >/dev/null || die '请先创建配置中的管理员账户。'
       fi ;;
     tailscale) tailscale_preflight ;;
+    tools) tools_preflight ;;
     services) services_preflight services ;;
     host) host_preflight; time_preflight ;;
     maintenance) swap_preflight ;;
@@ -141,13 +144,14 @@ main() {
       [[ "$INSTALL_SECURITY_HARDENING" == no ]] || configure_security
       [[ "$ENABLE_UNATTENDED_UPGRADES" == no ]] || configure_security_updates
       check_system
+      check_common_tools
       check_security
       check_host
       check_maintenance
       check_swap
       log '基础初始化完成。请用新管理员公钥登录并验证 sudo，然后执行 harden。' ;;
     docker) assert_no_pending_ssh; install_docker ;;
-    tools) assert_no_pending_ssh; apt_update; install_common_tools ;;
+    tools) assert_no_pending_ssh; apt_update; install_common_tools; check_common_tools ;;
     security)
       assert_no_pending_ssh
       apt_update

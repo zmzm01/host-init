@@ -79,6 +79,7 @@ services_preflight() { printf 'service preflight: %s\n' "$1"; }
 host_preflight() { :; }
 time_preflight() { :; }
 swap_preflight() { :; }
+tools_preflight() { :; }
 df() { printf 'mock disk space\n'; }
 begin_run() { die 'UNEXPECTED_WRITE'; }
 apt-get() { die 'UNEXPECTED_INSTALL'; }
@@ -145,6 +146,7 @@ install_services() { printf 'started optional services\n'; }
 configure_security() { printf 'applied kernel security\n'; }
 configure_security_updates() { :; }
 check_system() { :; }
+check_common_tools() { :; }
 check_host() { :; }
 check_maintenance() { :; }
 check_swap() { :; }

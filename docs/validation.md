@@ -10,6 +10,7 @@
 4. 检查 Docker 和 Compose 可用、Tailscale 首次显示待登录；执行 `tailscale up` 登录，再次安装 Tailscale 后设备身份应保持。
 5. 家庭服务器配置还应验证 Syncthing 的服务账户、设备身份和同步目录权限；选用 Nginx/Mihomo 时检查相应服务及实际访问范围。
 6. 运行 `health` 查看时间同步、Swap、磁盘/inode、失败单元及定时器；时间服务刚启动时可等待稍后再看。用 `sudo needrestart -r l` 安排服务/内核更新后的维护。
+7. 默认终端工具为 Zellij，在管理员会话检查 `command -v zellij` 和 `zellij --version`，进入/退出一次会话；重复运行 `tools` 不应重复下载同版本或修改用户配置。设置 `TERMINAL_MULTIPLEXER=tmux`/`none` 后不再安装 Zellij，已有工具保留。分别验证 amd64/arm64 的实际程序可执行。
 
 每次运行使用同一份配置。安装日志在 `/var/log/vps-init/`，修改前备份在 `/var/backups/vps-init/`。`no` 表示跳过，不用于卸载或撤销此前的选择。
 

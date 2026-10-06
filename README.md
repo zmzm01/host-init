@@ -206,13 +206,28 @@ ports:
 
 | 用途 | 工具 |
 | --- | --- |
-| 编辑和终端 | vim-tiny、nano、tmux、bash-completion |
+| 编辑和终端 | vim-tiny、nano、Zellij、bash-completion |
 | 系统与磁盘 | htop、ncdu、lsof、tree |
 | 文件和开发 | git、rsync、wget、jq、ripgrep、fd-find |
 | 归档压缩 | unzip、zip、zstd |
 | 网络诊断 | dnsutils、iputils-ping、mtr-tiny、netcat-openbsd |
 
 `EXTRA_PACKAGES=sqlite3 iperf3` 可添加普通 Debian 包名。关闭常用工具时，额外包仍会安装。单独运行：`sudo bash setup.sh tools`。Debian 的 fd-find 使用 `fdfind` 命令。
+
+终端复用工具默认 `TERMINAL_MULTIPLEXER=zellij`，也可设为 `tmux` 或 `none`。Zellij 从官方 GitHub Release 安装固定的 **0.45.1** 预编译版本，支持 Debian amd64/arm64；下载前检查架构，下载后核对项目内固定的官方 SHA-256，验证版本后原子安装到 `/usr/local/bin/zellij`。已有同版本直接沿用，更新其他版本前保存原程序。不会编译 Rust、改 Shell 启动文件或覆盖用户的 Zellij 配置。[官方安装方式](https://zellij.dev/documentation/installation.html)、[固定版本与发布校验值](https://github.com/zellij-org/zellij/releases/expanded_assets/v0.45.1)。
+
+旧配置没有该字段时也默认 Zellij；关闭常用工具会一并跳过终端工具。已经安装的 tmux 保留，仍可继续使用。已有服务器更新安装器后，只需更新常用工具：
+
+```bash
+cd /opt/host-init
+git pull --ff-only
+# 确认 config.conf 的 INSTALL_COMMON_TOOLS=yes；可明确添加 TERMINAL_MULTIPLEXER=zellij。
+sudo bash setup.sh tools --config config.conf
+# 在管理员会话中启动：
+zellij
+```
+
+固定版本升级由本项目更新版本和两种架构的校验值，不会每次安装自动追踪 latest。已有其他安装位置的 Zellij 会保留；若启动的仍是旧版本，用 `command -v zellij` 检查 PATH 优先级。
 
 ## 主机与维护配置
 

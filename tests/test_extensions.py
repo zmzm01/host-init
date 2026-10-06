@@ -11,6 +11,7 @@ HEADER = r"""
 INSTALL_SECURITY_HARDENING=yes
 ENABLE_UNATTENDED_UPGRADES=yes
 INSTALL_COMMON_TOOLS=yes
+TERMINAL_MULTIPLEXER=zellij
 EXTRA_PACKAGE_LIST=()
 INSTALL_TAILSCALE=yes
 TAILSCALE_UDP_PORT=''
@@ -80,11 +81,13 @@ class ExtensionTests(WorkflowFixture):
     def test_tools_with_extras_use_package_arguments(self):
         self.run_bash(r"""
 apt_install() { printf '%s\n' "$@" >> "$TRACE"; }
+install_zellij() { printf 'zellij\n' >> "$TRACE"; }
 EXTRA_PACKAGE_LIST=(sqlite3 iperf3)
 install_common_tools
 """)
-        for name in ["tmux", "htop", "ripgrep", "jq", "sqlite3", "iperf3"]:
+        for name in ["zellij", "htop", "ripgrep", "jq", "sqlite3", "iperf3"]:
             self.assertIn(name, self.trace().splitlines())
+        self.assertNotIn("tmux", self.trace().splitlines())
 
     def test_tools_disabled_keeps_only_explicit_extras(self):
         self.run_bash(r"""
