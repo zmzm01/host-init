@@ -1,5 +1,7 @@
 # 从 VPS / H81 目录迁移
 
+[返回首页](../README.md) · [配置参考](configuration.md) · [排错与维护](operations.md)
+
 项目现在只有根目录的 `setup.sh` 和一套 `lib/`、`modules/`、`tests/`。VPS 与家庭服务器的差异移到 `configs/` 的配置示例中，原来的分目录脚本入口已经移除。
 
 | 旧入口 | 新入口 |

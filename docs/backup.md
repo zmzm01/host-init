@@ -1,5 +1,7 @@
 # 备份与恢复
 
+[返回首页](../README.md) · [配置参考](configuration.md) · [排错与维护](operations.md)
+
 `INSTALL_BACKUP_TOOLS=yes` 安装 Debian 的 restic。仓库地址、备份密码、远端 SSH 身份和备份时间由你配置，安装器不把凭据写进 `config.conf`、不初始化远端仓库、不自动删除旧快照。初始化时的 `/var/backups/vps-init/` 只保存本次修改前的配置，不包含完整业务数据。
 
 选一台不同于被备份机器的服务器或适合的对象存储保存仓库，并记录需要恢复的目录。数据库先用数据库自身的导出或一致性快照方法取得可恢复的数据；直接复制运行中的数据库目录并不能保证恢复成功。Debian 的[备份策略](https://www.debian.org/doc/manuals/debian-handbook/sect.backup.en.html)也讨论了异地存储和数据库一致性。

@@ -1,15 +1,18 @@
 # 可选服务
 
+[返回首页](../README.md) · [配置参考](configuration.md) · [排错与维护](operations.md)
+
 Syncthing、Nginx 和 Mihomo 由项目的 `modules/services.sh` 提供，VPS、家庭服务器或其他 Debian 12/13 主机都可通过配置启用。H81 不需要专用入口。
 
 ## 初始化
 
-例如把完整项目复制到 `/opt/host-init`，由 root 控制代码和配置的写权限。在 root 会话中：
+先按[首页](../README.md#快速开始)把项目安装到 `/opt/host-init`。以下仅用于首次准备家庭配置，在 root 会话中执行；已有配置时直接编辑原文件，不用示例覆盖：
 
 ```bash
 cd /opt/host-init
 cp configs/homelab.example.conf config.conf
-# 将自己的 .pub 公钥放在项目根目录的 id_ed25519.pub，再编辑配置。
+# 将 SSH_PUBLIC_KEY_FILE 改为已上传的公钥路径，例如 /root/id_ed25519.pub。
+chmod 0600 config.conf
 nano config.conf
 bash setup.sh plan
 bash setup.sh doctor
@@ -19,12 +22,12 @@ bash setup.sh init
 默认安装共享基础模块、常用工具、Tailscale 和 Syncthing。Nginx、Mihomo 默认关闭，按需设置 `INSTALL_NGINX=yes`、`INSTALL_MIHOMO=yes`。服务也可单独安装：
 
 ```bash
-sudo bash /opt/host-init/setup.sh services
-sudo bash /opt/host-init/setup.sh check
+sudo bash /opt/host-init/setup.sh services --config /opt/host-init/config.conf
+sudo bash /opt/host-init/setup.sh check --config /opt/host-init/config.conf
 sudo tailscale up
 ```
 
-SSH 公钥验证、`harden --confirm-key-login`、新连接 `confirm-ssh` 及 5 分钟回退使用[项目说明](../README.md)中的同一流程。默认读取项目根目录的 `config.conf`，也可给各命令传入 `--config`。从旧 H81 目录迁移请看[迁移说明](migration.md)。
+SSH 公钥验证、`harden --confirm-key-login`、新连接 `confirm-ssh` 及 5 分钟回退使用[SSH 加固说明](security.md#验证登录并加固-ssh)中的同一流程。默认读取项目根目录的 `config.conf`，也可给各命令传入 `--config`。从旧 H81 目录迁移请看[迁移说明](migration.md)。
 
 ## Syncthing 与局域网端口
 
